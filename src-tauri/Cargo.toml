@@ -1,0 +1,37 @@
+[package]
+name = "router-usage"
+version = "1.0.0"
+description = "Desktop quota monitor for remote 9Router instances"
+authors = ["Afridho"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "router_usage_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "cookies"], default-features = false }
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+chrono = "0.4"
+open = "5"
+tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2.5.1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_Packaging_Appx", "Win32_System_Threading"] }
+windows = { version = "0.61.3", features = ["Data_Xml_Dom", "UI_Notifications", "Win32_System_WinRT"] }
+keyring = { version = "3", default-features = false, features = ["windows-native"] }
