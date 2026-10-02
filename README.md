@@ -13,7 +13,7 @@ A lightweight Windows system-tray application for monitoring provider quotas and
 
 ## Features
 
-- Connect to any 9Router instance, including the default local server at `http://localhost:20128`.
+- Connect to any 9Router instance, including the default local API endpoint at `http://localhost:20128/v1`.
 - Monitor all provider connections exposed by the 9Router dashboard API.
 - Display remaining quota, reset countdowns, account names, plans, and provider status.
 - Display monetary credit balances such as DeepSeek in USD.
@@ -36,10 +36,10 @@ A lightweight Windows system-tray application for monitoring provider quotas and
 The default server URL is:
 
 ```text
-http://localhost:20128
+http://localhost:20128/v1
 ```
 
-Remote HTTP, HTTPS, IP address, hostname, and custom-port installations can be configured from the connection screen or Settings.
+This matches the API Endpoint shown in the 9Router dashboard, so it can be copied and pasted directly. URLs without the `/v1` suffix remain supported. Remote HTTP, HTTPS, IP address, hostname, and custom-port installations can be configured from the connection screen or Settings.
 
 ## Installation
 
@@ -48,10 +48,10 @@ Install from the [Microsoft Store](https://apps.microsoft.com/detail/9NR91D484XF
 Typical release artifacts:
 
 ```text
-9Router-Usage_1.0.0_x64-setup.exe
-9Router-Usage_1.0.0_x64_en-US.msi
-9Router-Usage-1.0.0-portable-x64.zip
-9Router-Usage-1.0.0-store-x64.msix
+9Router-Usage_1.0.1_x64-setup.exe
+9Router-Usage_1.0.1_x64_en-US.msi
+9Router-Usage-1.0.1-portable-x64.zip
+9Router-Usage-1.0.1-store-x64.msix
 checksums.txt
 ```
 
@@ -112,8 +112,8 @@ src-tauri\target\release\bundle
 The workflow in `.github/workflows/release.yml` builds Windows installers, a portable archive, an unsigned Microsoft Store MSIX, and SHA-256 checksums when a version tag is pushed:
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 The Store MSIX uses the reserved identity `afridho.9RouterUsage` and is intentionally unsigned for direct Partner Center submission. See [STORE_SUBMISSION.md](STORE_SUBMISSION.md) for build and certification instructions.
