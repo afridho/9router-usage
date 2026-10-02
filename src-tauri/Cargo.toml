@@ -1,6 +1,6 @@
 [package]
 name = "router-usage"
-version = "1.0.0"
+version = "1.0.1"
 description = "Desktop quota monitor for remote 9Router instances"
 authors = ["Afridho"]
 edition = "2021"

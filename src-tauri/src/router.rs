@@ -65,11 +65,16 @@ pub struct RouterClient {
 }
 impl RouterClient {
     pub fn new(base_url: &str) -> Result<Self, String> {
-        let base_url = base_url.trim().trim_end_matches('/').to_string();
+        let mut base_url = base_url.trim().trim_end_matches('/').to_string();
         let parsed =
             reqwest::Url::parse(&base_url).map_err(|_| "URL 9Router tidak valid".to_string())?;
         if !matches!(parsed.scheme(), "https" | "http") {
             return Err("URL harus menggunakan HTTP atau HTTPS".into());
+        }
+        // The dashboard displays its OpenAI-compatible endpoint with `/v1`.
+        // Accept that copy-pasted URL while keeping dashboard API calls at the origin.
+        if parsed.path().trim_end_matches('/') == "/v1" {
+            base_url.truncate(base_url.len() - 3);
         }
         let client = Client::builder()
             .cookie_provider(Arc::new(Jar::default()))
@@ -81,6 +86,9 @@ impl RouterClient {
     }
     fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url, path)
+    }
+    pub fn base_url(&self) -> &str {
+        &self.base_url
     }
     pub async fn login(&self, password: &str) -> Result<(), String> {
         let r = self
@@ -132,8 +140,10 @@ impl RouterClient {
                 return out;
             }
             Err(e) => {
+                // A network failure does not mean the saved session is invalid. Keep the
+                // authenticated view so a temporarily unavailable instance does not send
+                // the user back to the login screen.
                 out.server_online = false;
-                out.authenticated = false;
                 out.error = Some(e);
                 return out;
             }

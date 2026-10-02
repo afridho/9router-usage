@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 use tauri_plugin_autostart::ManagerExt;
 
 fn default_server_url() -> String {
-    "http://localhost:20128".into()
+    "http://localhost:20128/v1".into()
 }
 fn default_refresh_interval() -> u64 {
     300
@@ -186,12 +186,11 @@ pub fn save_settings(app_handle: tauri::AppHandle, settings: AppSettings) -> Res
     settings
         .credit_budgets
         .retain(|_, value| value.is_finite() && *value > 0.0);
-    write_settings(&settings)?;
     let manager = app_handle.autolaunch();
     if settings.open_on_startup {
-        let _ = manager.enable();
+        manager.enable().map_err(|e| format!("Gagal mengaktifkan startup: {e}"))?;
     } else {
-        let _ = manager.disable();
+        manager.disable().map_err(|e| format!("Gagal menonaktifkan startup: {e}"))?;
     }
-    Ok(())
+    write_settings(&settings)
 }

@@ -25,7 +25,7 @@ npm ci
 The output is:
 
 ```text
-dist\9Router-Usage-1.0.0-store-x64.msix
+dist\9Router-Usage-1.0.1-store-x64.msix
 ```
 
 The MSIX is intentionally unsigned. Upload it directly to Partner Center; Microsoft signs it after certification. It cannot be sideloaded normally until it is signed.

@@ -68,10 +68,14 @@ async fn router_login(
     password: String,
 ) -> Result<router::RouterData, String> {
     let mut s = settings::read_settings();
+    let previous_server_url = s.server_url.clone();
     s.server_url = server_url.trim().trim_end_matches('/').into();
-    settings::write_settings(&s)?;
     let client = router::RouterClient::new(&s.server_url)?;
     client.login(&password).await?;
+    settings::write_settings(&s)?;
+    if previous_server_url != s.server_url {
+        settings::delete_password(&previous_server_url);
+    }
     if s.remember_password {
         settings::save_password(&s.server_url, &password)?;
     } else {
@@ -89,11 +93,15 @@ async fn router_logout(
     state: tauri::State<'_, RouterState>,
 ) -> Result<(), String> {
     let mut g = state.client.lock().await;
+    let credential_url = g
+        .as_ref()
+        .map(|client| client.base_url().to_string())
+        .unwrap_or_else(|| settings::read_settings().server_url);
     if let Some(c) = g.as_ref() {
         c.logout().await;
     }
     *g = None;
-    settings::delete_password(&settings::read_settings().server_url);
+    settings::delete_password(&credential_url);
     let d = router::RouterData::default();
     *state.data.lock().unwrap() = d.clone();
     let _ = app.emit("router-updated", d);
