@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+mod linux_tray;
 mod router;
 pub mod settings;
 
@@ -5,12 +7,13 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+#[cfg(not(target_os = "linux"))]
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager,
 };
+use tauri::{Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
 
 pub struct RouterState {
@@ -19,6 +22,11 @@ pub struct RouterState {
 }
 pub struct AlertedSet(pub Arc<Mutex<HashSet<String>>>);
 static IS_PINNED: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+fn is_linux() -> bool {
+    cfg!(target_os = "linux")
+}
 
 #[tauri::command]
 async fn open_url(url: String) {
@@ -177,6 +185,12 @@ fn check_notifications(app: &tauri::AppHandle, data: &router::RouterData) {
     }
 }
 fn position_window(window: &tauri::WebviewWindow) {
+    #[cfg(target_os = "linux")]
+    {
+        linux_tray::position_window(window);
+        return;
+    }
+    #[cfg(not(target_os = "linux"))]
     if let Some(m) = window.primary_monitor().ok().flatten() {
         let wa = m.work_area();
         let sz = window
@@ -188,6 +202,7 @@ fn position_window(window: &tauri::WebviewWindow) {
         ));
     }
 }
+#[cfg(not(target_os = "linux"))]
 fn toggle_window(window: &tauri::WebviewWindow) {
     if window.is_visible().unwrap_or(false) {
         let _ = window.hide();
@@ -200,15 +215,25 @@ fn toggle_window(window: &tauri::WebviewWindow) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // GTK's Wayland backend cannot place top-level popups at tray coordinates.
+    // Prefer XWayland when available, before GTK is initialized (Linux only).
+    #[cfg(target_os = "linux")]
+    linux_tray::configure_backend();
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                position_window(&window);
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-        }))
+        .plugin(
+            tauri_plugin_single_instance::Builder::new()
+                // D-Bus name segments cannot start with a digit, unlike bundle identifiers.
+                .dbus_id("my.afridho.RouterUsage")
+                .callback(|app, _args, _cwd| {
+                    if let Some(window) = app.get_webview_window("main") {
+                        position_window(&window);
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -221,6 +246,7 @@ pub fn run() {
         })
         .manage(AlertedSet(Arc::new(Mutex::new(HashSet::new()))))
         .invoke_handler(tauri::generate_handler![
+            is_linux,
             hide_window,
             set_window_height,
             toggle_pin,
@@ -277,45 +303,50 @@ pub fn run() {
                 }
             });
             let lost: Arc<Mutex<Option<Instant>>> = Arc::new(Mutex::new(None));
-            let lost_tray = lost.clone();
-            let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
-            TrayIconBuilder::new()
-                .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .tooltip("9Router Usage")
-                .on_menu_event(|app, e| match e.id.as_ref() {
-                    "show" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            toggle_window(&w)
-                        }
-                    }
-                    "quit" => app.exit(0),
-                    _ => {}
-                })
-                .on_tray_icon_event(move |tray, e| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = e
-                    {
-                        let recent = lost_tray
-                            .lock()
-                            .ok()
-                            .and_then(|v| *v)
-                            .map(|t| t.elapsed().as_millis() < 300)
-                            .unwrap_or(false);
-                        if !recent {
-                            if let Some(w) = tray.app_handle().get_webview_window("main") {
+            #[cfg(target_os = "linux")]
+            linux_tray::setup(app.handle())?;
+            #[cfg(not(target_os = "linux"))]
+            {
+                let lost_tray = lost.clone();
+                let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+                let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+                let menu = Menu::with_items(app, &[&show, &quit])?;
+                TrayIconBuilder::new()
+                    .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
+                    .menu(&menu)
+                    .show_menu_on_left_click(false)
+                    .tooltip("9Router Usage")
+                    .on_menu_event(|app, e| match e.id.as_ref() {
+                        "show" => {
+                            if let Some(w) = app.get_webview_window("main") {
                                 toggle_window(&w)
                             }
                         }
-                    }
-                })
-                .build(app)?;
+                        "quit" => app.exit(0),
+                        _ => {}
+                    })
+                    .on_tray_icon_event(move |tray, e| {
+                        if let TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } = e
+                        {
+                            let recent = lost_tray
+                                .lock()
+                                .ok()
+                                .and_then(|v| *v)
+                                .map(|t| t.elapsed().as_millis() < 300)
+                                .unwrap_or(false);
+                            if !recent {
+                                if let Some(w) = tray.app_handle().get_webview_window("main") {
+                                    toggle_window(&w)
+                                }
+                            }
+                        }
+                    })
+                    .build(app)?;
+            }
             let w = app.get_webview_window("main").unwrap();
             if !std::env::args().any(|arg| arg == "--autostart") {
                 position_window(&w);

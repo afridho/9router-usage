@@ -1,0 +1,23 @@
+/* Only applied after the Rust backend confirms Linux. Windows styles stay intact. */
+html[data-linux-theme] { --surface:#202124; --card:#2b2d31; --field:#24262a; --text:#eceef2; --muted:#a1a7b2; --border:#454950; --hover:#363a42; --accent:#78aaff; color-scheme:dark; }
+html[data-linux-theme="light"] { --surface:#f7f8fa; --card:#fff; --field:#f0f2f5; --text:#20242b; --muted:#626b78; --border:#d1d6df; --hover:#e5e9f0; --accent:#2563eb; color-scheme:light; }
+html[data-linux-theme] body { color:var(--text); }
+html[data-linux-theme] .popup { background:var(--surface); border:0; }
+html[data-linux-theme] :is(.provider-card,.empty,.modal-card) { background:var(--card); border-color:var(--border); }
+html[data-linux-theme] :is(.popup-header>span,.account-name,.card-status,.progress-label-row,.budget-editor,.empty,.popup-footer,.connection p,.connection small,label,.btn-icon,.btn-close,.modal-close,.settings-tabs button) { color:var(--muted); }
+html[data-linux-theme] :is(input,select,.budget-input,.settings-tabs) { background:var(--field); color:var(--text); border-color:var(--border); }
+html[data-linux-theme] :is(input:focus,select:focus,.budget-input:focus-within) { border-color:var(--accent); }
+html[data-linux-theme] .modal-close:focus-visible { outline-color:var(--accent); }
+html[data-linux-theme] :is(.btn-icon:hover,.btn-close:hover,.modal-close:hover,.budget-input button,.modal-btn-link,.settings-tabs button.active) { background:var(--hover); color:var(--text); border-color:var(--border); }
+html[data-linux-theme] .budget-input>span { color:var(--muted); }
+html[data-linux-theme] .budget-input input { background:transparent; }
+html[data-linux-theme] :is(.settings-actions,.popup-footer) { border-color:var(--border); }
+html[data-linux-theme] .progress-track { background:var(--border); }
+html[data-linux-theme] :is(.pin-button.pinned,.inline-link,.footer-retry) { color:var(--accent); }
+html[data-linux-theme] .pin-button.pinned { background:var(--hover); }
+html[data-linux-theme] .primary { background:#2563eb; }
+html[data-linux-theme] .primary:hover { background:#1d4ed8; }
+html[data-linux-theme="light"] .credit-value { color:#465e80!important; }
+html[data-linux-theme="light"] .error-box { background:#fff0f0; border-color:#ecc0c0; color:#a32424; }
+html[data-linux-theme="light"] .danger { background:#fbeaea; color:#a32424; }
+html[data-linux-theme] .budget-input.invalid { border-color:#e05252; }

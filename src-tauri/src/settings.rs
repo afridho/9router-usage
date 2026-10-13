@@ -72,17 +72,35 @@ impl Default for AppSettings {
 }
 
 pub fn get_settings_path() -> PathBuf {
+    #[cfg(target_os = "linux")]
+    let base = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    #[cfg(not(target_os = "linux"))]
     let base = std::env::var("APPDATA")
         .or_else(|_| std::env::var("HOME"))
         .unwrap_or_else(|_| ".".into());
     let base = PathBuf::from(base);
-    let dir = base.join("9RouterUsage");
+    #[cfg(target_os = "linux")]
+    let config_base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .unwrap_or_else(|| base.join(".config"));
+    #[cfg(not(target_os = "linux"))]
+    let config_base = base.clone();
+    let dir = config_base.join("9RouterUsage");
     let path = dir.join("settings.json");
     if !path.exists() {
-        let old_path = base.join("9RouterMonitor").join("settings.json");
-        if old_path.exists() {
-            let _ = fs::create_dir_all(&dir);
-            let _ = fs::copy(old_path, &path);
+        // Preserve settings from releases that stored configuration directly in HOME.
+        let legacy_paths = [
+            base.join("9RouterUsage").join("settings.json"),
+            base.join("9RouterMonitor").join("settings.json"),
+        ];
+        for old_path in legacy_paths {
+            if old_path != path && old_path.exists() {
+                let _ = fs::create_dir_all(&dir);
+                if fs::copy(old_path, &path).is_ok() {
+                    break;
+                }
+            }
         }
     }
     let _ = fs::create_dir_all(&dir);
@@ -101,7 +119,7 @@ pub fn write_settings(settings: &AppSettings) -> Result<(), String> {
     fs::write(get_settings_path(), content).map_err(|e| e.to_string())
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn credential_account(server_url: &str) -> String {
     reqwest::Url::parse(server_url)
         .ok()
@@ -109,34 +127,52 @@ fn credential_account(server_url: &str) -> String {
         .unwrap_or_else(|| server_url.to_lowercase())
 }
 
-#[cfg(windows)]
+#[cfg(all(test, any(windows, target_os = "linux")))]
+mod tests {
+    use super::credential_account;
+
+    #[test]
+    fn credentials_are_scoped_to_server_hostname() {
+        assert_eq!(
+            credential_account("https://Router.Example:20128/v1"),
+            "router.example"
+        );
+        assert_eq!(credential_account("http://localhost:20128/v1"), "localhost");
+        assert_ne!(
+            credential_account("https://one.example/v1"),
+            credential_account("https://two.example/v1")
+        );
+    }
+}
+
+#[cfg(any(windows, target_os = "linux"))]
 fn password_entry(server_url: &str) -> Result<keyring::Entry, String> {
     keyring::Entry::new("9Router Usage", &credential_account(server_url)).map_err(|e| e.to_string())
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn legacy_password_entry() -> Result<keyring::Entry, String> {
     keyring::Entry::new("9Router Usage", "dashboard-password").map_err(|e| e.to_string())
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn old_password_entry() -> Result<keyring::Entry, String> {
     keyring::Entry::new("9Router Monitor", "dashboard-password").map_err(|e| e.to_string())
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub fn save_password(server_url: &str, password: &str) -> Result<(), String> {
     password_entry(server_url)?
         .set_password(password)
         .map_err(|e| e.to_string())
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "linux")))]
 pub fn save_password(_server_url: &str, _password: &str) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub fn read_password(server_url: &str) -> Option<String> {
     if let Ok(password) = password_entry(server_url).ok()?.get_password() {
         return Some(password);
@@ -150,12 +186,12 @@ pub fn read_password(server_url: &str) -> Option<String> {
     Some(password)
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "linux")))]
 pub fn read_password(_server_url: &str) -> Option<String> {
     None
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub fn delete_password(server_url: &str) {
     if let Ok(entry) = password_entry(server_url) {
         let _ = entry.delete_credential();
@@ -168,7 +204,7 @@ pub fn delete_password(server_url: &str) {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "linux")))]
 pub fn delete_password(_server_url: &str) {}
 
 #[tauri::command]
@@ -188,9 +224,13 @@ pub fn save_settings(app_handle: tauri::AppHandle, settings: AppSettings) -> Res
         .retain(|_, value| value.is_finite() && *value > 0.0);
     let manager = app_handle.autolaunch();
     if settings.open_on_startup {
-        manager.enable().map_err(|e| format!("Gagal mengaktifkan startup: {e}"))?;
+        manager
+            .enable()
+            .map_err(|e| format!("Gagal mengaktifkan startup: {e}"))?;
     } else {
-        manager.disable().map_err(|e| format!("Gagal menonaktifkan startup: {e}"))?;
+        manager
+            .disable()
+            .map_err(|e| format!("Gagal menonaktifkan startup: {e}"))?;
     }
     write_settings(&settings)
 }

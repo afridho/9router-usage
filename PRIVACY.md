@@ -1,6 +1,6 @@
 # Privacy Policy for 9Router Usage
 
-**Effective date:** September 29, 2026
+**Effective date:** October 13, 2026
 
 9Router Usage is a desktop utility that displays provider quotas and credit balances from a 9Router server selected by the user. This policy explains how the application handles data.
 
@@ -25,11 +25,13 @@ The application stores preferences locally, including the configured server URL,
 %APPDATA%\9RouterUsage\settings.json
 ```
 
-Dashboard passwords are never written to this settings file. If **Remember password securely** is enabled, the password is stored in Windows Credential Manager and separated by server hostname. If the option is disabled, the application does not retain the password after the session ends. Disconnecting removes the saved credential for the active server.
+On Linux, settings are stored in `$XDG_CONFIG_HOME/9RouterUsage/settings.json`, defaulting to `~/.config/9RouterUsage/settings.json`. Settings from older `~/9RouterUsage` or `~/9RouterMonitor` directories are copied to this location when necessary; the original files are retained.
+
+Dashboard passwords are never written to this settings file. If **Remember password securely** is enabled, the password is stored in Windows Credential Manager on Windows or an unlocked Secret Service-compatible keyring on Linux, separated by server hostname. If the option is disabled, the application does not retain the password after the session ends. Disconnecting removes the saved credential for the active server.
 
 ## Notifications
 
-If enabled, quota and credit alerts are generated locally using the Windows notification system. Notification contents are not sent to the developer.
+If enabled, quota and credit alerts are generated locally using the operating system's desktop notification service. Notification contents are not sent to the developer.
 
 ## Network access
 
@@ -37,7 +39,7 @@ The application only initiates network requests needed to communicate with the u
 
 ## Data retention and deletion
 
-Users can remove stored credentials by disconnecting the active server or by deleting the corresponding entry from Windows Credential Manager. Local preferences can be removed by deleting `%APPDATA%\9RouterUsage` or uninstalling the application and removing its app data through Windows Settings.
+Users can remove stored credentials by disconnecting the active server or by deleting the corresponding entry from Windows Credential Manager or their Linux keyring manager. Local preferences can be removed by deleting `%APPDATA%\9RouterUsage` on Windows, or `$XDG_CONFIG_HOME/9RouterUsage` (default `~/.config/9RouterUsage`) on Linux. On Linux, also remove legacy `~/9RouterUsage` and `~/9RouterMonitor` settings if present to prevent re-importing them.
 
 ## Children's privacy
 
